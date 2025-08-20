@@ -1,41 +1,87 @@
-import React, { useState } from 'react';
-import { Search, Filter, Eye, Edit, Trash2, Plus } from 'lucide-react';
-import { mockOrders } from '../mockData';
-import { Order } from '../types';
+import React, { useState, useEffect } from "react";
+import { Search, Filter, Eye, Edit, Trash2, Plus } from "lucide-react";
+import { Order } from "../types";
+import { BASE } from "../Api/Api";
 
 const OrdersPage: React.FC = () => {
-  const [orders, setOrders] = useState<Order[]>(mockOrders);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterStatus, setFilterStatus] = useState<string>('all');
+  const [orders, setOrders] = useState<Order[]>([]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  const filteredOrders = orders.filter(order => {
-    const matchesSearch = order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         order.id.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesFilter = filterStatus === 'all' || order.status === filterStatus;
-    return matchesSearch && matchesFilter;
-  });
+  // 🟢 جلب البيانات من السيرفر
+  const fetchOrders = async () => {
+    try {
+      const response = await fetch(`${BASE}/admin/orders`,{
+        headers: {
+          "Authorization": `Bearer ${localStorage.getItem("admin-token")}`
+        }
+      });
+      const data = await response.json();
 
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case 'delivered': return 'bg-emerald-100 text-emerald-800 border-emerald-200';
-      case 'processing': return 'bg-blue-100 text-blue-800 border-blue-200';
-      case 'shipped': return 'bg-indigo-100 text-indigo-800 border-indigo-200';
-      case 'pending': return 'bg-yellow-100 text-yellow-800 border-yellow-200';
-      case 'cancelled': return 'bg-red-100 text-red-800 border-red-200';
-      default: return 'bg-gray-100 text-gray-800 border-gray-200';
+      // 🟢 تحويل البيانات لشكل مناسب للـ UI
+      const mappedOrders: Order[] = data.map((o: any) => ({
+        id: o.order_number, // استخدم order_number للعرض
+        status: o.status,
+        total: o.total,
+        date: o.created_at,
+        customerName: o.customer?.name || "Unknown",
+        customerEmail: o.customer?.email || "N/A", // لو الـ API مش بيرجع إيميل
+        shippingAddress: o.vendor?.name || "N/A", // مؤقتاً هنستخدم اسم الـ vendor
+        items: o.items_count || 0, // لو عندك items_count من السيرفر
+      }));
+
+      setOrders(mappedOrders);
+    } catch (error) {
+      console.error("Error fetching orders:", error);
     }
   };
 
-  const updateOrderStatus = (orderId: string, newStatus: Order['status']) => {
-    setOrders(orders.map(order => 
-      order.id === orderId ? { ...order, status: newStatus } : order
-    ));
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  // 🟢 فلترة النتائج
+  const filteredOrders = orders.filter((order) => {
+    const matchesSearch =
+      order.customerName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      order.id.toLowerCase().includes(searchTerm.toLowerCase());
+    const matchesFilter =
+      filterStatus === "all" || order.status === filterStatus;
+    return matchesSearch && matchesFilter;
+  });
+
+  // 🟢 ألوان الـ status
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "delivered":
+        return "bg-emerald-100 text-emerald-800 border-emerald-200";
+      case "processing":
+        return "bg-blue-100 text-blue-800 border-blue-200";
+      case "shipped":
+        return "bg-indigo-100 text-indigo-800 border-indigo-200";
+      case "pending":
+        return "bg-yellow-100 text-yellow-800 border-yellow-200";
+      case "cancelled":
+        return "bg-red-100 text-red-800 border-red-200";
+      default:
+        return "bg-gray-100 text-gray-800 border-gray-200";
+    }
   };
 
+  // 🟢 تحديث حالة الأوردر
+  const updateOrderStatus = (orderId: string, newStatus: Order["status"]) => {
+    setOrders(
+      orders.map((order) =>
+        order.id === orderId ? { ...order, status: newStatus } : order
+      )
+    );
+  };
+
+  // 🟢 حذف أوردر
   const deleteOrder = (orderId: string) => {
-    setOrders(orders.filter(order => order.id !== orderId));
+    setOrders(orders.filter((order) => order.id !== orderId));
   };
 
   return (
@@ -92,32 +138,62 @@ const OrdersPage: React.FC = () => {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">Order ID</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">Customer</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">Status</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">Items</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">Total</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">Date</th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">Actions</th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">
+                  Order ID
+                </th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">
+                  Customer
+                </th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">
+                  Status
+                </th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">
+                  Items
+                </th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">
+                  Total
+                </th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">
+                  Date
+                </th>
+                <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">
+                  Actions
+                </th>
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
               {filteredOrders.map((order) => (
-                <tr key={order.id} className="hover:bg-gray-50 transition-colors duration-150">
+                <tr
+                  key={order.id}
+                  className="hover:bg-gray-50 transition-colors duration-150"
+                >
                   <td className="px-6 py-4">
-                    <span className="text-sm font-medium text-gray-900">{order.id}</span>
+                    <span className="text-sm font-medium text-gray-900">
+                      {order.id}
+                    </span>
                   </td>
                   <td className="px-6 py-4">
                     <div>
-                      <p className="text-sm font-medium text-gray-900">{order.customerName}</p>
-                      <p className="text-sm text-gray-500">{order.customerEmail}</p>
+                      <p className="text-sm font-medium text-gray-900">
+                        {order.customerName}
+                      </p>
+                      <p className="text-sm text-gray-500">
+                        {order.customerEmail}
+                      </p>
                     </div>
                   </td>
                   <td className="px-6 py-4">
                     <select
                       value={order.status}
-                      onChange={(e) => updateOrderStatus(order.id, e.target.value as Order['status'])}
-                      className={`text-xs font-medium px-3 py-1 rounded-full border cursor-pointer ${getStatusColor(order.status)}`}
+                      onChange={(e) =>
+                        updateOrderStatus(
+                          order.id,
+                          e.target.value as Order["status"]
+                        )
+                      }
+                      className={`text-xs font-medium px-3 py-1 rounded-full border cursor-pointer ${getStatusColor(
+                        order.status
+                      )}`}
                     >
                       <option value="pending">Pending</option>
                       <option value="processing">Processing</option>
@@ -126,9 +202,15 @@ const OrdersPage: React.FC = () => {
                       <option value="cancelled">Cancelled</option>
                     </select>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{order.items} items</td>
-                  <td className="px-6 py-4 text-sm font-medium text-gray-900">${order.total}</td>
-                  <td className="px-6 py-4 text-sm text-gray-500">{order.date}</td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {order.items} items
+                  </td>
+                  <td className="px-6 py-4 text-sm font-medium text-gray-900">
+                    ${order.total}
+                  </td>
+                  <td className="px-6 py-4 text-sm text-gray-500">
+                    {order.date}
+                  </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-2">
                       <button
@@ -165,47 +247,90 @@ const OrdersPage: React.FC = () => {
             <div className="p-6 border-b border-gray-100">
               <div className="flex justify-between items-start">
                 <div>
-                  <h2 className="text-xl font-semibold text-gray-900">Order Details</h2>
-                  <p className="text-sm text-gray-500 mt-1">{selectedOrder.id}</p>
+                  <h2 className="text-xl font-semibold text-gray-900">
+                    Order Details
+                  </h2>
+                  <p className="text-sm text-gray-500 mt-1">
+                    {selectedOrder.id}
+                  </p>
                 </div>
                 <button
                   onClick={() => setIsModalOpen(false)}
                   className="text-gray-400 hover:text-gray-600 transition-colors"
                 >
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  <svg
+                    className="w-6 h-6"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M6 18L18 6M6 6l12 12"
+                    />
                   </svg>
                 </button>
               </div>
             </div>
-            
+
             <div className="p-6 space-y-6">
               <div className="grid grid-cols-2 gap-6">
                 <div>
-                  <h3 className="font-medium text-gray-900 mb-3">Customer Information</h3>
+                  <h3 className="font-medium text-gray-900 mb-3">
+                    Customer Information
+                  </h3>
                   <div className="space-y-2 text-sm">
-                    <p><span className="text-gray-500">Name:</span> {selectedOrder.customerName}</p>
-                    <p><span className="text-gray-500">Email:</span> {selectedOrder.customerEmail}</p>
+                    <p>
+                      <span className="text-gray-500">Name:</span>{" "}
+                      {selectedOrder.customerName}
+                    </p>
+                    <p>
+                      <span className="text-gray-500">Email:</span>{" "}
+                      {selectedOrder.customerEmail}
+                    </p>
                   </div>
                 </div>
                 <div>
-                  <h3 className="font-medium text-gray-900 mb-3">Order Information</h3>
+                  <h3 className="font-medium text-gray-900 mb-3">
+                    Order Information
+                  </h3>
                   <div className="space-y-2 text-sm">
-                    <p><span className="text-gray-500">Status:</span> 
-                      <span className={`ml-2 px-2 py-1 text-xs rounded-full ${getStatusColor(selectedOrder.status)}`}>
-                        {selectedOrder.status.charAt(0).toUpperCase() + selectedOrder.status.slice(1)}
+                    <p>
+                      <span className="text-gray-500">Status:</span>
+                      <span
+                        className={`ml-2 px-2 py-1 text-xs rounded-full ${getStatusColor(
+                          selectedOrder.status
+                        )}`}
+                      >
+                        {selectedOrder.status.charAt(0).toUpperCase() +
+                          selectedOrder.status.slice(1)}
                       </span>
                     </p>
-                    <p><span className="text-gray-500">Date:</span> {selectedOrder.date}</p>
-                    <p><span className="text-gray-500">Items:</span> {selectedOrder.items}</p>
-                    <p><span className="text-gray-500">Total:</span> ${selectedOrder.total}</p>
+                    <p>
+                      <span className="text-gray-500">Date:</span>{" "}
+                      {selectedOrder.date}
+                    </p>
+                    <p>
+                      <span className="text-gray-500">Items:</span>{" "}
+                      {selectedOrder.items}
+                    </p>
+                    <p>
+                      <span className="text-gray-500">Total:</span> $
+                      {selectedOrder.total}
+                    </p>
                   </div>
                 </div>
               </div>
-              
+
               <div>
-                <h3 className="font-medium text-gray-900 mb-3">Shipping Address</h3>
-                <p className="text-sm text-gray-600">{selectedOrder.shippingAddress}</p>
+                <h3 className="font-medium text-gray-900 mb-3">
+                  Shipping Address
+                </h3>
+                <p className="text-sm text-gray-600">
+                  {selectedOrder.shippingAddress}
+                </p>
               </div>
             </div>
           </div>

@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, ReactNode } from 'react';
-import { User } from './types';
-import { BASE } from './Api/Api';
+import React, { createContext, useContext, useState, ReactNode } from "react";
+import { User } from "./types";
+import { BASE } from "./Api/Api";
 
 interface AuthContextType {
   user: User | null;
@@ -14,7 +14,7 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export const useAuth = () => {
   const context = useContext(AuthContext);
   if (context === undefined) {
-    throw new Error('useAuth must be used within an AuthProvider');
+    throw new Error("useAuth must be used within an AuthProvider");
   }
   return context;
 };
@@ -28,16 +28,18 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
 
   const login = async (email: string, password: string): Promise<boolean> => {
     const response = await fetch(`${BASE}/admin/auth/login`, {
-      method: 'POST',
+      method: "POST",
       headers: {
-        'Content-Type': 'application/json'
+        "Content-Type": "application/json",
       },
-      body: JSON.stringify({ email, password })
+      body: JSON.stringify({ email, password }),
     });
 
     if (response.ok) {
       const userData = await response.json();
       setUser(userData);
+      console.log(userData);
+      localStorage.setItem("admin-token", JSON.stringify(userData.token)); // Save token to local storage
       return true;
     }
 
