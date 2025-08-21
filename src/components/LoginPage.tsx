@@ -20,8 +20,10 @@ const LoginPage: React.FC = () => {
       if (!success) {
         setError("Invalid email or password");
       }
-    } catch (err) {
-      setError("Login failed. Please try again.");
+    } catch (err: Error | unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Login failed. Please try again.";
+      setError(errorMessage);
     } finally {
       setIsLoading(false);
     }
