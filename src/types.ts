@@ -2,18 +2,18 @@ export interface User {
   id: string;
   email: string;
   name: string;
-  role: 'admin';
+  role: "admin";
 }
 
 export interface Order {
   id: string;
-  customerName: string;
-  customerEmail: string;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  status: "pending" | "processing" | "shipped" | "delivered" | "cancelled";
   total: number;
-  items: number;
-  date: string;
-  shippingAddress: string;
+  date: string; 
+  customerName: string;
+  customerEmail?: string; 
+  shippingAddress?: string; 
+  items: number; 
 }
 
 export interface Product {
@@ -22,7 +22,7 @@ export interface Product {
   category: string;
   price: number;
   stock: number;
-  status: 'active' | 'inactive' | 'out_of_stock';
+  status: "active" | "inactive" | "out_of_stock";
   vendor: string;
   description: string;
   image?: string;
@@ -34,7 +34,7 @@ export interface Vendor {
   email: string;
   phone: string;
   address: string;
-  status: 'active' | 'inactive';
+  status: "active" | "inactive";
   productsCount: number;
   totalSales: number;
   joinedDate: string;

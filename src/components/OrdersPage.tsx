@@ -2,6 +2,8 @@ import React, { useState, useEffect } from "react";
 import { Search, Filter, Eye, Edit, Trash2, Plus } from "lucide-react";
 import { Order } from "../types";
 import { BASE } from "../Api/Api";
+import axios from "axios";
+import { toast, ToastContainer } from "react-toastify";
 
 const OrdersPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
@@ -10,15 +12,20 @@ const OrdersPage: React.FC = () => {
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
 
+  // remove double quotes
+  const token = localStorage.getItem("admin-token")?.slice(1, -1);
+  // console.log(token);
   // 🟢 جلب البيانات من السيرفر
   const fetchOrders = async () => {
     try {
-      const response = await fetch(`${BASE}/admin/orders`,{
+      const response = await axios.get(`${BASE}/admin/orders`, {
         headers: {
-          "Authorization": `Bearer ${localStorage.getItem("admin-token")}`
-        }
+          Authorization: `Bearer ${token}`,
+        },
       });
-      const data = await response.json();
+      console.log(response.data.data.data);
+
+      const data = response.data.data.data;
 
       // 🟢 تحويل البيانات لشكل مناسب للـ UI
       const mappedOrders: Order[] = data.map((o: any) => ({
@@ -27,9 +34,7 @@ const OrdersPage: React.FC = () => {
         total: o.total,
         date: o.created_at,
         customerName: o.customer?.name || "Unknown",
-        customerEmail: o.customer?.email || "N/A", // لو الـ API مش بيرجع إيميل
-        shippingAddress: o.vendor?.name || "N/A", // مؤقتاً هنستخدم اسم الـ vendor
-        items: o.items_count || 0, // لو عندك items_count من السيرفر
+        shippingAddress: o.vendor?.name || "N/A",
       }));
 
       setOrders(mappedOrders);
@@ -71,12 +76,33 @@ const OrdersPage: React.FC = () => {
   };
 
   // 🟢 تحديث حالة الأوردر
-  const updateOrderStatus = (orderId: string, newStatus: Order["status"]) => {
-    setOrders(
-      orders.map((order) =>
-        order.id === orderId ? { ...order, status: newStatus } : order
-      )
-    );
+
+  const updateOrderStatus = async (
+    orderId: string,
+    newStatus: Order["status"]
+  ) => {
+    try {
+      await axios.post(
+        `${BASE}/admin/orders/updatestatus/${orderId}`,
+        { status: newStatus },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      setOrders(
+        orders.map((order) =>
+          order.id === orderId ? { ...order, status: newStatus } : order
+        )
+      );
+
+      toast.success("Order status updated successfully!");
+    } catch (error) {
+      console.error("Error updating order status:", error);
+      toast.error("Error updating order status.");
+    }
   };
 
   // 🟢 حذف أوردر
@@ -86,6 +112,7 @@ const OrdersPage: React.FC = () => {
 
   return (
     <div className="p-6 space-y-6">
+      <ToastContainer theme="colored" />
       <div className="flex justify-between items-start">
         <div>
           <h1 className="text-3xl font-bold text-gray-900">Orders</h1>
@@ -148,9 +175,6 @@ const OrdersPage: React.FC = () => {
                   Status
                 </th>
                 <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">
-                  Items
-                </th>
-                <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">
                   Total
                 </th>
                 <th className="px-6 py-4 text-left text-sm font-medium text-gray-500">
@@ -162,23 +186,20 @@ const OrdersPage: React.FC = () => {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-100">
-              {filteredOrders.map((order) => (
+              {filteredOrders.map((order, i) => (
                 <tr
                   key={order.id}
                   className="hover:bg-gray-50 transition-colors duration-150"
                 >
                   <td className="px-6 py-4">
                     <span className="text-sm font-medium text-gray-900">
-                      {order.id}
+                      {i + 1}
                     </span>
                   </td>
                   <td className="px-6 py-4">
                     <div>
                       <p className="text-sm font-medium text-gray-900">
                         {order.customerName}
-                      </p>
-                      <p className="text-sm text-gray-500">
-                        {order.customerEmail}
                       </p>
                     </div>
                   </td>
@@ -202,14 +223,11 @@ const OrdersPage: React.FC = () => {
                       <option value="cancelled">Cancelled</option>
                     </select>
                   </td>
-                  <td className="px-6 py-4 text-sm text-gray-500">
-                    {order.items} items
-                  </td>
                   <td className="px-6 py-4 text-sm font-medium text-gray-900">
                     ${order.total}
                   </td>
                   <td className="px-6 py-4 text-sm text-gray-500">
-                    {order.date}
+                    {order.date.split(" ")[0]}
                   </td>
                   <td className="px-6 py-4">
                     <div className="flex items-center space-x-2">
@@ -221,15 +239,6 @@ const OrdersPage: React.FC = () => {
                         className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-150"
                       >
                         <Eye className="w-4 h-4" />
-                      </button>
-                      <button className="p-2 text-gray-600 hover:bg-gray-50 rounded-lg transition-colors duration-150">
-                        <Edit className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => deleteOrder(order.id)}
-                        className="p-2 text-red-600 hover:bg-red-50 rounded-lg transition-colors duration-150"
-                      >
-                        <Trash2 className="w-4 h-4" />
                       </button>
                     </div>
                   </td>
@@ -285,10 +294,6 @@ const OrdersPage: React.FC = () => {
                     <p>
                       <span className="text-gray-500">Name:</span>{" "}
                       {selectedOrder.customerName}
-                    </p>
-                    <p>
-                      <span className="text-gray-500">Email:</span>{" "}
-                      {selectedOrder.customerEmail}
                     </p>
                   </div>
                 </div>

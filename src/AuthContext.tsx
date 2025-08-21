@@ -50,7 +50,7 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     setUser(null);
   };
 
-  const isAuthenticated = user !== null;
+  const isAuthenticated = localStorage.getItem("admin-token") !== null;
 
   return (
     <AuthContext.Provider value={{ user, login, logout, isAuthenticated }}>
