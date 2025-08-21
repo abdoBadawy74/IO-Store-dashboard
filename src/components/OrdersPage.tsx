@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
-import { Search, Filter, Eye, Plus } from "lucide-react";
-import { Order } from "../types";
+import { Search, Filter, Eye } from "lucide-react";
+import { ApiOrderDetails, Order } from "../types";
 import { BASE } from "../Api/Api";
 import axios from "axios";
 import { toast, ToastContainer } from "react-toastify";
@@ -9,8 +9,11 @@ const OrdersPage: React.FC = () => {
   const [orders, setOrders] = useState<Order[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [filterStatus, setFilterStatus] = useState<string>("all");
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
+  const [selectedOrder, setSelectedOrder] = useState<ApiOrderDetails | null>(
+    null
+  );
   const [isModalOpen, setIsModalOpen] = useState(false);
+
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
 
@@ -31,7 +34,7 @@ const OrdersPage: React.FC = () => {
 
       // 🟢 تحويل البيانات لشكل مناسب للـ UI
       const mappedOrders: Order[] = data.map((o: Order) => ({
-        id: o.order_number, // استخدم order_number للعرض
+        id: o.id, // استخدم order_number للعرض
         status: o.status,
         total: o.total,
         date: o.created_at,
@@ -152,6 +155,33 @@ const OrdersPage: React.FC = () => {
       handleDateFilter();
     }
   }, [startDate, endDate]);
+
+  // عرض تفاصيل الاوردر
+  const fetchOrderDetails = async (orderId: number) => {
+    try {
+      const res = await fetch(
+        `https://iostore.fivesolutions.net/api/admin/orders/show/${orderId}`,
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      if (!res.ok) {
+        throw new Error(`Failed to fetch details: ${res.status}`);
+      }
+
+      const response = await res.json();
+      setSelectedOrder(response.data);
+      console.log(response.data);
+      setIsModalOpen(true); // نفتح المودال بعد ما البيانات تيجي
+    } catch (err: Error | unknown) {
+      const errorMessage =
+        err instanceof Error ? err.message : "Something went wrong";
+      console.error("Error fetching order details:", errorMessage);
+    }
+  };
 
   return (
     <div className="p-6 space-y-6">
@@ -284,7 +314,7 @@ const OrdersPage: React.FC = () => {
                     <div className="flex items-center space-x-2">
                       <button
                         onClick={() => {
-                          setSelectedOrder(order);
+                          fetchOrderDetails(parseInt(order.id));
                           setIsModalOpen(true);
                         }}
                         className="p-2 text-blue-600 hover:bg-blue-50 rounded-lg transition-colors duration-150"
@@ -301,90 +331,74 @@ const OrdersPage: React.FC = () => {
       </div>
 
       {/* Order Details Modal */}
+
       {isModalOpen && selectedOrder && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <div className="p-6 border-b border-gray-100">
-              <div className="flex justify-between items-start">
-                <div>
-                  <h2 className="text-xl font-semibold text-gray-900">
-                    Order Details
-                  </h2>
-                  <p className="text-sm text-gray-500 mt-1">
-                    {selectedOrder.id}
-                  </p>
-                </div>
-                <button
-                  onClick={() => setIsModalOpen(false)}
-                  className="text-gray-400 hover:text-gray-600 transition-colors"
+        <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-2xl p-6 max-w-3xl w-full overflow-y-auto">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-lg font-bold">
+                Order #{selectedOrder.order_number}
+              </h2>
+              <button
+                onClick={() => setIsModalOpen(false)}
+                className="text-gray-500 hover:text-black"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* بيانات العميل */}
+            <div className="mb-4">
+              <h3 className="font-medium">Customer</h3>
+              <p>{selectedOrder.customer?.name}</p>
+              <p>{selectedOrder.customer?.email || "No email"}</p>
+            </div>
+
+            {/* بيانات الأوردر */}
+            <div className="mb-4">
+              <h3 className="font-medium">Order Info</h3>
+              <p>Status: {selectedOrder.status}</p>
+              <p>Total: ${selectedOrder.total}</p>
+              <p>Date: {selectedOrder.created_at}</p>
+              <p>Vendor: {selectedOrder.vendor?.name}</p>
+            </div>
+
+            {/* المنتجات */}
+            <div>
+              <h3 className="font-medium mb-2">Items</h3>
+              {selectedOrder?.items.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center border rounded-lg p-3 mb-2"
                 >
-                  <svg
-                    className="w-6 h-6"
-                    fill="none"
-                    viewBox="0 0 24 24"
-                    stroke="currentColor"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </button>
-              </div>
-            </div>
-
-            <div className="p-6 space-y-6">
-              <div className="grid grid-cols-2 gap-6">
-                <div>
-                  <h3 className="font-medium text-gray-900 mb-3">
-                    Customer Information
-                  </h3>
-                  <div className="space-y-2 text-sm">
-                    <p>
-                      <span className="text-gray-500">Name:</span>{" "}
-                      {selectedOrder.customerName}
+                  <img
+                    src={item.image}
+                    alt={item.name}
+                    className="w-16 h-16 rounded mr-4 object-cover"
+                  />
+                  <div className="flex-1">
+                    <p className="font-medium">{item.name}</p>
+                    <p className="text-sm text-gray-500">
+                      Qty: {item.quantity}
+                    </p>
+                  </div>
+                  <div className="text-right">
+                    <p>${item.price}</p>
+                    <p className="text-xs text-gray-400">
+                      Comm: ${item.product_commission}
                     </p>
                   </div>
                 </div>
-                <div>
-                  <h3 className="font-medium text-gray-900 mb-3">
-                    Order Information
-                  </h3>
-                  <div className="space-y-2 text-sm">
-                    <p>
-                      <span className="text-gray-500">Status:</span>
-                      <span
-                        className={`ml-2 px-2 py-1 text-xs rounded-full ${getStatusColor(
-                          selectedOrder.status
-                        )}`}
-                      >
-                        {selectedOrder.status.charAt(0).toUpperCase() +
-                          selectedOrder.status.slice(1)}
-                      </span>
-                    </p>
-                    <p>
-                      <span className="text-gray-500">Date:</span>{" "}
-                      {selectedOrder.date}
-                    </p>
-                    <p>
-                      <span className="text-gray-500">Total:</span> $
-                      {selectedOrder.total}
-                    </p>
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <h3 className="font-medium text-gray-900 mb-3">
-                  Shipping Address
-                </h3>
-                <p className="text-sm text-gray-600">
-                  {selectedOrder.shippingAddress}
-                </p>
-              </div>
+              ))}
             </div>
+
+            {/* كود الخصم */}
+            {selectedOrder.promo_code && (
+              <div className="mt-4">
+                <h3 className="font-medium">Promo Code</h3>
+                <p>{selectedOrder.promo_code}</p>
+              </div>
+            )}
           </div>
         </div>
       )}
