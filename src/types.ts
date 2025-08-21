@@ -7,13 +7,19 @@ export interface User {
 
 export interface Order {
   id: string;
+  order_number: string;
   status: "pending" | "processing" | "shipped" | "delivered" | "cancelled";
   total: number;
-  date: string; 
+  date: string;
+  created_at: string;
+  customer?: {
+    name: string;
+  };
+  vendor?: {
+    name: string;
+  };
   customerName: string;
-  customerEmail?: string; 
-  shippingAddress?: string; 
-  items: number; 
+  shippingAddress: string;
 }
 
 export interface Product {

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from "react";
-import { Search, Filter, Eye, Edit, Trash2, Plus } from "lucide-react";
+import { Search, Filter, Eye, Plus } from "lucide-react";
 import { Order } from "../types";
 import { BASE } from "../Api/Api";
 import axios from "axios";
@@ -28,7 +28,7 @@ const OrdersPage: React.FC = () => {
       const data = response.data.data.data;
 
       // 🟢 تحويل البيانات لشكل مناسب للـ UI
-      const mappedOrders: Order[] = data.map((o: any) => ({
+      const mappedOrders: Order[] = data.map((o: Order) => ({
         id: o.order_number, // استخدم order_number للعرض
         status: o.status,
         total: o.total,
@@ -103,11 +103,6 @@ const OrdersPage: React.FC = () => {
       console.error("Error updating order status:", error);
       toast.error("Error updating order status.");
     }
-  };
-
-  // 🟢 حذف أوردر
-  const deleteOrder = (orderId: string) => {
-    setOrders(orders.filter((order) => order.id !== orderId));
   };
 
   return (
@@ -316,10 +311,6 @@ const OrdersPage: React.FC = () => {
                     <p>
                       <span className="text-gray-500">Date:</span>{" "}
                       {selectedOrder.date}
-                    </p>
-                    <p>
-                      <span className="text-gray-500">Items:</span>{" "}
-                      {selectedOrder.items}
                     </p>
                     <p>
                       <span className="text-gray-500">Total:</span> $
