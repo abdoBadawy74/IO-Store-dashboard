@@ -11,6 +11,8 @@ const OrdersPage: React.FC = () => {
   const [filterStatus, setFilterStatus] = useState<string>("all");
   const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [startDate, setStartDate] = useState("");
+  const [endDate, setEndDate] = useState("");
 
   // remove double quotes
   const token = localStorage.getItem("admin-token")?.slice(1, -1);
@@ -76,7 +78,6 @@ const OrdersPage: React.FC = () => {
   };
 
   // 🟢 تحديث حالة الأوردر
-
   const updateOrderStatus = async (
     orderId: string,
     newStatus: Order["status"]
@@ -105,6 +106,53 @@ const OrdersPage: React.FC = () => {
     }
   };
 
+  // 🟢 تاريخ الفلترة
+  const handleDateFilter = () => {
+    if (!startDate || !endDate) {
+      toast.error("Please select both start and end dates.");
+      return;
+    }
+
+    if (new Date(startDate) > new Date(endDate)) {
+      toast.error("Start date cannot be after end date.");
+      return;
+    }
+
+    // send request to server
+    axios
+      .post(
+        `${BASE}/admin/orders/daterange`,
+        { start_date: startDate, end_date: endDate },
+        {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      )
+      .then((response) => {
+        const data = response.data.data.data;
+        const mappedOrders: Order[] = data.map((o: Order) => ({
+          id: o.order_number,
+          status: o.status,
+          total: o.total,
+          date: o.created_at,
+          customerName: o.customer?.name || "Unknown",
+          shippingAddress: o.vendor?.name || "N/A",
+        }));
+        setOrders(mappedOrders);
+      })
+      .catch((error) => {
+        console.error("Error fetching orders:", error);
+      });
+    return;
+  };
+
+  useEffect(() => {
+    if (startDate && endDate) {
+      handleDateFilter();
+    }
+  }, [startDate, endDate]);
+
   return (
     <div className="p-6 space-y-6">
       <ToastContainer theme="colored" />
@@ -113,26 +161,34 @@ const OrdersPage: React.FC = () => {
           <h1 className="text-3xl font-bold text-gray-900">Orders</h1>
           <p className="text-gray-600 mt-2">Manage and track customer orders</p>
         </div>
-        <button className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-xl font-medium transition-colors duration-200 flex items-center">
-          <Plus className="w-4 h-4 mr-2" />
-          New Order
-        </button>
       </div>
 
       {/* Filters */}
       <div className="bg-white rounded-2xl border border-gray-100 p-6">
         <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1">
+          <div className="w-[50%]">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-5 h-5 text-gray-400" />
               <input
                 type="text"
-                placeholder="Search orders by customer name or ID..."
+                placeholder="Search orders by customer name..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
               />
             </div>
+          </div>
+          <div className="sm:w-74 flex gap-2">
+            <input
+              type="date"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+              onChange={(e) => setStartDate(e.target.value)}
+            />
+            <input
+              type="date"
+              className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200"
+              onChange={(e) => setEndDate(e.target.value)}
+            />
           </div>
           <div className="sm:w-48">
             <div className="relative">
